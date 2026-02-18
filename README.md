@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Hybrid-AML: Relational Fraud Detection System
 
 **Course:** DSCI 551 Course Project, Spring '26  
@@ -67,3 +68,7 @@ Financial fraud detection (e.g., Anti-Money Laundering) requires both strict ACI
 
 ## License
 DSCI 551 Course Project
+=======
+# DSCI-551-Data-Base-Course-Project
+Project for DSCI 551
+>>>>>>> 0f95a9f35446f9cb4c6e59811ed6016a7010bc89
