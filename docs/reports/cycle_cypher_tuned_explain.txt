@@ -1,0 +1,66 @@
+LOAD
+SET
+                                                                                                                                                                                       QUERY PLAN                                                                                                                                                                                        
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Subquery Scan on _  (cost=19.34..19.35 rows=1 width=256) (actual time=0.386..0.388 rows=1.00 loops=1)
+   Buffers: shared hit=95
+   ->  Sort  (cost=19.34..19.34 rows=1 width=288) (actual time=0.386..0.387 rows=1.00 loops=1)
+         Sort Key: (agtype_access_operator(VARIADIC ARRAY[_agtype_build_edge(t1.id, t1.start_id, t1.end_id, _label_name('18878'::oid, t1.id), t1.properties), '"tx_epoch"'::agtype]))
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=95
+         ->  Nested Loop  (cost=10.69..19.33 rows=1 width=288) (actual time=0.372..0.376 rows=1.00 loops=1)
+               Join Filter: (_ag_enforce_edge_uniqueness3(t1.id, t2.id, t3.id) AND (a.id = t1.start_id) AND (t1.end_id = b.id) AND ((agtype_access_operator(VARIADIC ARRAY[t3.properties, '"tx_epoch"'::agtype]) - agtype_access_operator(VARIADIC ARRAY[t1.properties, '"tx_epoch"'::agtype])) <= '21600'::agtype))
+               Rows Removed by Join Filter: 15
+               Buffers: shared hit=87
+               ->  Hash Join  (cost=10.55..15.97 rows=7 width=862) (actual time=0.216..0.329 rows=16.00 loops=1)
+                     Hash Cond: (t2.start_id = b.id)
+                     Join Filter: ((age_id(_agtype_build_vertex(a.id, _label_name('18878'::oid, a.id), a.properties)) < age_id(_agtype_build_vertex(b.id, _label_name('18878'::oid, b.id), b.properties))) AND (age_id(_agtype_build_vertex(b.id, _label_name('18878'::oid, b.id), b.properties)) <> age_id(_agtype_build_vertex(c.id, _label_name('18878'::oid, c.id), c.properties))))
+                     Rows Removed by Join Filter: 47
+                     Buffers: shared hit=46
+                     ->  Hash Join  (cost=8.63..13.99 rows=22 width=716) (actual time=0.177..0.230 rows=63.00 loops=1)
+                           Hash Cond: (t2.end_id = c.id)
+                           Join Filter: (agtype_access_operator(VARIADIC ARRAY[t2.properties, '"tx_epoch"'::agtype]) <= agtype_access_operator(VARIADIC ARRAY[t3.properties, '"tx_epoch"'::agtype]))
+                           Rows Removed by Join Filter: 50
+                           Buffers: shared hit=45
+                           ->  Seq Scan on "TRANSFER" t2  (cost=0.00..3.89 rows=89 width=212) (actual time=0.001..0.004 rows=89.00 loops=1)
+                                 Buffers: shared hit=3
+                           ->  Hash  (cost=8.25..8.25 rows=30 width=504) (actual time=0.169..0.169 rows=47.00 loops=1)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 34kB
+                                 Buffers: shared hit=42
+                                 ->  Hash Join  (cost=3.85..8.25 rows=30 width=504) (actual time=0.061..0.161 rows=47.00 loops=1)
+                                       Hash Cond: (t3.start_id = c.id)
+                                       Join Filter: (age_id(_agtype_build_vertex(a.id, _label_name('18878'::oid, a.id), a.properties)) < age_id(_agtype_build_vertex(c.id, _label_name('18878'::oid, c.id), c.properties)))
+                                       Rows Removed by Join Filter: 42
+                                       Buffers: shared hit=42
+                                       ->  Hash Join  (cost=1.92..6.07 rows=89 width=358) (actual time=0.012..0.025 rows=89.00 loops=1)
+                                             Hash Cond: (t3.end_id = a.id)
+                                             Buffers: shared hit=4
+                                             ->  Seq Scan on "TRANSFER" t3  (cost=0.00..3.89 rows=89 width=212) (actual time=0.001..0.005 rows=89.00 loops=1)
+                                                   Buffers: shared hit=3
+                                             ->  Hash  (cost=1.41..1.41 rows=41 width=146) (actual time=0.005..0.006 rows=41.00 loops=1)
+                                                   Buckets: 1024  Batches: 1  Memory Usage: 16kB
+                                                   Buffers: shared hit=1
+                                                   ->  Seq Scan on "Account" a  (cost=0.00..1.41 rows=41 width=146) (actual time=0.001..0.002 rows=41.00 loops=1)
+                                                         Buffers: shared hit=1
+                                       ->  Hash  (cost=1.41..1.41 rows=41 width=146) (actual time=0.005..0.005 rows=41.00 loops=1)
+                                             Buckets: 1024  Batches: 1  Memory Usage: 16kB
+                                             Buffers: shared hit=1
+                                             ->  Seq Scan on "Account" c  (cost=0.00..1.41 rows=41 width=146) (actual time=0.001..0.002 rows=41.00 loops=1)
+                                                   Buffers: shared hit=1
+                     ->  Hash  (cost=1.41..1.41 rows=41 width=146) (actual time=0.008..0.008 rows=41.00 loops=1)
+                           Buckets: 1024  Batches: 1  Memory Usage: 16kB
+                           Buffers: shared hit=1
+                           ->  Seq Scan on "Account" b  (cost=0.00..1.41 rows=41 width=146) (actual time=0.002..0.003 rows=41.00 loops=1)
+                                 Buffers: shared hit=1
+               ->  Index Scan using "TRANSFER_end_id_idx" on "TRANSFER" t1  (cost=0.14..0.44 rows=1 width=212) (actual time=0.001..0.001 rows=1.00 loops=16)
+                     Index Cond: (end_id = t2.start_id)
+                     Filter: (agtype_access_operator(VARIADIC ARRAY[properties, '"tx_epoch"'::agtype]) <= agtype_access_operator(VARIADIC ARRAY[t2.properties, '"tx_epoch"'::agtype]))
+                     Rows Removed by Filter: 1
+                     Index Searches: 16
+                     Buffers: shared hit=39
+ Planning:
+   Buffers: shared hit=317
+ Planning Time: 1.478 ms
+ Execution Time: 0.471 ms
+(60 rows)
+
