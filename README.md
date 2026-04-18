@@ -17,8 +17,8 @@ Can PostgreSQL with Apache AGE efficiently support graph traversal workloads com
 - Relational schema for `customers`, `accounts`, and `transactions`
 - Synthetic transaction generator with:
   - normal payroll, rent, utility, grocery, and peer-to-peer activity
-  - one smurfing funnel scenario
-  - one circular trading scenario
+  - nine smurfing funnel scenarios
+  - nine circular trading scenarios
 - SQL smurfing detection query
 - Recursive SQL circular trading detection query
 - Cypher circular trading query on AGE
