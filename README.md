@@ -20,6 +20,7 @@ Can PostgreSQL with Apache AGE efficiently support graph traversal workloads com
   - nine smurfing funnel scenarios
   - nine circular trading scenarios
 - SQL smurfing detection query
+- AGE-backed smurfing detection query
 - Recursive SQL circular trading detection query
 - Cypher circular trading query on AGE
 - Tuned Cypher variant on a transfer-only graph projection
@@ -41,6 +42,8 @@ Can PostgreSQL with Apache AGE efficiently support graph traversal workloads com
 │   ├── guidelines/          # Course guidelines
 │   ├── proposal/            # Phase 1 proposal
 │   └── reports/             # Midterm report and supporting notes
+├── scripts/
+│   └── reset_pipeline.sh    # One-command Docker + PostgreSQL + AGE reset
 ├── src/
 │   ├── analysis/            # Benchmark and analysis scripts
 │   ├── dashboard/           # Reserved for application UI
@@ -48,70 +51,140 @@ Can PostgreSQL with Apache AGE efficiently support graph traversal workloads com
 └── tests/                   # Reserved for smoke tests
 ```
 
-## Setup
+## Prerequisites
 
-### 1. Generate synthetic data
+- Docker Desktop running locally
+- `python3` available on the host machine
+- Optional: `psql` on the host if you want to connect outside the container
+
+This prototype does not require an Apache web server. The runtime stack is:
+
+- Dockerized PostgreSQL + Apache AGE
+- Host-side Python for synthetic data generation and benchmarking
+
+## Clone and Enter the Repo
 
 ```bash
-cd repo_sync
+git clone https://github.com/KHUCHAN/DSCI-551-Data-Base-Course-Project.git
+cd DSCI-551-Data-Base-Course-Project
+```
+
+All commands below assume you are running them from the repository root. The reset script resolves paths relative to its own location, so it does not depend on a machine-specific absolute path.
+
+## Quick Start
+
+From the repository root:
+
+```bash
+./scripts/reset_pipeline.sh
+```
+
+That script will:
+
+1. Pull the `apache/age` image if needed
+2. Start a Docker container named `apache-age`
+3. Generate the synthetic CSV data
+4. Create the relational schema
+5. Load CSV data into PostgreSQL
+6. Enable the AGE extension
+7. Build the baseline and tuned graph projections
+8. Print final row counts
+
+If you want to recreate the database volume from scratch:
+
+```bash
+RESET_DB_VOLUME=1 ./scripts/reset_pipeline.sh
+```
+
+The default container settings used by the script are:
+
+- Container name: `apache-age`
+- Database: `hybrid_aml`
+- User: `postgres`
+- Port: `5455`
+
+## Manual Setup
+
+```bash
+docker pull apache/age
+
+docker run -d \
+  --name apache-age \
+  -p 5455:5432 \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=hybrid_aml \
+  -v age_pg18data:/var/lib/postgresql \
+  -v "$PWD":/workspace \
+  apache/age
+
 python3 src/data_generation/generate_synthetic_data.py
+
+docker exec -i -w /workspace apache-age \
+  psql -v ON_ERROR_STOP=1 -U postgres -d hybrid_aml \
+  < database/migrations/001_schema.sql
+
+docker exec -i -w /workspace apache-age \
+  psql -v ON_ERROR_STOP=1 -U postgres -d hybrid_aml \
+  < database/seeds/load_from_csv.sql
+
+docker exec -i -w /workspace apache-age \
+  psql -v ON_ERROR_STOP=1 -U postgres -d hybrid_aml \
+  < database/setup_age.sql
+
+docker exec -i -w /workspace apache-age \
+  psql -v ON_ERROR_STOP=1 -U postgres -d hybrid_aml \
+  < database/seeds/load_age_graph.sql
+
+docker exec -i -w /workspace apache-age \
+  psql -v ON_ERROR_STOP=1 -U postgres -d hybrid_aml \
+  < database/seeds/load_age_graph_tuned.sql
 ```
 
-### 2. Create the schema
+## Demo Queries
+
+Run the core AML queries directly against the Dockerized database:
 
 ```bash
-psql -U postgres -d hybrid_aml -f database/migrations/001_schema.sql
+docker exec -i -w /workspace apache-age \
+  psql -U postgres -d hybrid_aml \
+  < database/queries/smurfing_detection.sql
+
+docker exec -i -w /workspace apache-age \
+  psql -U postgres -d hybrid_aml \
+  < database/queries/smurfing_detection_age.sql
+
+docker exec -i -w /workspace apache-age \
+  psql -U postgres -d hybrid_aml \
+  < database/queries/circular_trading_recursive.sql
+
+docker exec -i -w /workspace apache-age \
+  psql -U postgres -d hybrid_aml \
+  < database/queries/circular_trading_cypher.sql
+
+docker exec -i -w /workspace apache-age \
+  psql -U postgres -d hybrid_aml \
+  < database/queries/circular_trading_cypher_tuned.sql
 ```
 
-### 3. Load CSV data
+## Benchmarks
+
+To rerun the cycle-detection benchmark and refresh the saved `EXPLAIN ANALYZE` artifacts:
 
 ```bash
-psql -U postgres -d hybrid_aml -f database/seeds/load_from_csv.sql
+python3 src/analysis/benchmark_cycle_queries.py
 ```
 
-### 4. Enable AGE
-
-```bash
-psql -U postgres -d hybrid_aml -f database/setup_age.sql
-```
-
-### 5. Build graph projections
-
-Baseline graph:
-
-```bash
-psql -U postgres -d hybrid_aml -f database/seeds/load_age_graph.sql
-```
-
-Tuned graph:
-
-```bash
-psql -U postgres -d hybrid_aml -f database/seeds/load_age_graph_tuned.sql
-```
-
-## Query Benchmarks
-
-The circular trading benchmark was run on March 9, 2026 against the Dockerized `hybrid_aml` database using 20 repeated `EXPLAIN ANALYZE` executions.
-
-- Recursive SQL
-  - median execution: `0.187 ms`
-  - trimmed execution mean: `0.196 ms`
-- Cypher on AGE
-  - median execution: `0.740 ms`
-  - trimmed execution mean: `0.758 ms`
-- Tuned Cypher on AGE
-  - median execution: `0.494 ms`
-  - trimmed execution mean: `0.495 ms`
-
-## Current Interpretation
-
-The current bounded cycle-detection workload is still faster in recursive SQL than in AGE/Cypher. The tuned graph projection reduces Cypher execution time, but the relational baseline remains more efficient on this small dataset. This is not a general statement about all graph databases; it is a result for the current AML prototype, current projection design, and current workload shape.
+The benchmark script expects the Docker container name to remain `apache-age`. The latest saved summaries and explain plans live under [docs/reports](docs/reports).
 
 ## Deliverables in This Repository
 
 - Phase 1 proposal: [docs/proposal/Phase 1_ Project Proposal.pdf](docs/proposal/Phase%201_%20Project%20Proposal.pdf)
-- Phase 2 report: [docs/reports/Phase 2_ Midterm Report.pdf](docs/reports/Phase%202_%20Midterm%20Report.pdf)
-- Editable report copy: [docs/reports/Phase 2_ Midterm Report.docx](docs/reports/Phase%202_%20Midterm%20Report.docx)
+- Phase 2 report: [docs/reports/Phase2_MidtermReport_ChanyoungKim_YogitaMutyala.pdf](docs/reports/Phase2_MidtermReport_ChanyoungKim_YogitaMutyala.pdf)
+- Detection rule pseudocode: [docs/reports/detection_rules_pseudocode.md](docs/reports/detection_rules_pseudocode.md)
+- Circular trading scenario note: [docs/reports/circular_trading_scenario.md](docs/reports/circular_trading_scenario.md)
+- Smurfing scenario note: [docs/reports/smurfing_scenario.md](docs/reports/smurfing_scenario.md)
+- Cycle benchmark summary: [docs/reports/cycle_benchmark_summary.md](docs/reports/cycle_benchmark_summary.md)
 
 ## License
 
