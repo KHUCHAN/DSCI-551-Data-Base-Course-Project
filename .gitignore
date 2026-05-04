@@ -131,3 +131,9 @@ dmypy.json
 
 # macOS
 .DS_Store
+
+# Local browser automation artifacts
+.playwright-cli/
+
+# Local QA/render artifacts
+tmp/

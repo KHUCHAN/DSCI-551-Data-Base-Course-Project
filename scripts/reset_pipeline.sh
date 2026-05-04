@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-IMAGE_NAME="${IMAGE_NAME:-apache/age}"
+IMAGE_NAME="${IMAGE_NAME:-apache/age:latest}"
 CONTAINER_NAME="${CONTAINER_NAME:-apache-age}"
 DB_NAME="${DB_NAME:-hybrid_aml}"
 POSTGRES_USER="${POSTGRES_USER:-postgres}"
@@ -63,6 +63,12 @@ docker pull "$IMAGE_NAME"
 if docker ps -a --format '{{.Names}}' | grep -Fxq "$CONTAINER_NAME"; then
     log "Removing existing container: $CONTAINER_NAME"
     docker rm -f "$CONTAINER_NAME" >/dev/null
+fi
+
+if docker ps --format '{{.Ports}}' | grep -Eq "(0.0.0.0:|127.0.0.1:|\\[::\\]:)$HOST_PORT->"; then
+    echo "Host port $HOST_PORT is already in use by a running Docker container." >&2
+    echo "Set HOST_PORT to a free port, for example: HOST_PORT=5456 ./scripts/reset_pipeline.sh" >&2
+    exit 1
 fi
 
 if [[ "$RESET_DB_VOLUME" == "1" ]] && docker volume inspect "$DB_VOLUME" >/dev/null 2>&1; then

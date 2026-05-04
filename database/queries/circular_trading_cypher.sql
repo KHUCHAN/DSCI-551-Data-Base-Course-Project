@@ -16,6 +16,7 @@ FROM cypher(
       AND t3.tx_type = 'transfer'
       AND t1.tx_time <= t2.tx_time
       AND t2.tx_time <= t3.tx_time
+      AND t3.tx_epoch - t1.tx_epoch <= 21600
     RETURN
         a.account_id,
         b.account_id,
@@ -25,7 +26,7 @@ FROM cypher(
         t3.tx_id,
         t1.tx_time,
         t3.tx_time
-    ORDER BY t1.tx_time
+    ORDER BY t1.tx_epoch
     $$
 ) AS (
     account_a agtype,

@@ -1,7 +1,7 @@
 # Circular Trading Benchmark Summary
 
-Benchmark date: March 9, 2026  
-Database: PostgreSQL 18.1 with Apache AGE 1.7.0  
+Benchmark date: 2026-05-03
+Database: PostgreSQL with Apache AGE
 Runs per query: 20 warm-cache `EXPLAIN ANALYZE` executions
 
 ## Query Variants
@@ -14,9 +14,9 @@ Runs per query: 20 warm-cache `EXPLAIN ANALYZE` executions
 
 | Query | Median Execution (ms) | Trimmed Mean Execution (ms) |
 | --- | ---: | ---: |
-| Recursive SQL | 0.187 | 0.196 |
-| Cypher on AGE | 0.740 | 0.758 |
-| Tuned Cypher on AGE | 0.494 | 0.495 |
+| Recursive SQL | 1.341 | 1.387 |
+| Cypher on AGE | 6.946 | 6.998 |
+| Cypher on AGE (tuned) | 2.705 | 2.716 |
 
 ## Interpretation
 

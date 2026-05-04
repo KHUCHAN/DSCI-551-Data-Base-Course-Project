@@ -65,6 +65,7 @@ BEGIN
             to_account_id,
             amount,
             tx_time,
+            EXTRACT(EPOCH FROM tx_time)::BIGINT AS tx_epoch,
             channel,
             tx_type,
             is_fraud_label,
@@ -85,6 +86,7 @@ BEGIN
                     tx_id: %L,
                     amount: %s,
                     tx_time: %L,
+                    tx_epoch: %s,
                     channel: %L,
                     tx_type: %L,
                     is_fraud_label: %L,
@@ -99,6 +101,7 @@ BEGIN
             tx_row.tx_id,
             tx_row.amount,
             tx_row.tx_time,
+            tx_row.tx_epoch,
             tx_row.channel,
             tx_row.tx_type,
             tx_row.is_fraud_label,
@@ -107,6 +110,9 @@ BEGIN
     END LOOP;
 END
 $$;
+
+ANALYZE aml_graph."Account";
+ANALYZE aml_graph."TRANSFER";
 
 SELECT
     (SELECT COUNT(*) FROM aml_graph."Account") AS account_vertices,

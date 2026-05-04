@@ -1,7 +1,6 @@
-########################### AI Generated Synthentic Data ###########################
-
 from __future__ import annotations
 
+import argparse
 import csv
 import random
 from collections import defaultdict
@@ -222,12 +221,12 @@ def cycle_minute_offsets(cohort_number: int) -> list[int]:
     return [template[0], template[1] + wave_index * 5, template[2] + wave_index * 9]
 
 
-def build_customers() -> tuple[list[Customer], list[Account], list[CohortContext]]:
+def build_customers(cohort_count: int = COHORT_COUNT) -> tuple[list[Customer], list[Account], list[CohortContext]]:
     customers: list[Customer] = []
     accounts: list[Account] = []
     cohorts: list[CohortContext] = []
 
-    for cohort_number in range(1, COHORT_COUNT + 1):
+    for cohort_number in range(1, cohort_count + 1):
         customer_to_primary_account: dict[str, str] = {}
         customer_accounts: list[str] = []
         feeder_accounts: list[str] = []
@@ -361,7 +360,7 @@ def build_customers() -> tuple[list[Customer], list[Account], list[CohortContext
     return customers, accounts, cohorts
 
 
-def build_transactions(cohorts: list[CohortContext]) -> list[dict[str, str]]:
+def build_transactions(cohorts: list[CohortContext], seed: int = SEED) -> list[dict[str, str]]:
     transactions: list[dict[str, str]] = []
     tx_counter = 1
 
@@ -398,7 +397,7 @@ def build_transactions(cohorts: list[CohortContext]) -> list[dict[str, str]]:
     cycle_day = datetime(2026, 2, 22, 10, 15, 0)
 
     for cohort in cohorts:
-        rng = random.Random(SEED + cohort_variant_slot(cohort.cohort_number) - 1)
+        rng = random.Random(seed + cohort_variant_slot(cohort.cohort_number) - 1)
         cohort_base_day = base_day + timedelta(days=(cohort.cohort_number - 1) * 23)
 
         for account_id in cohort.customer_accounts:
@@ -516,25 +515,34 @@ def build_transactions(cohorts: list[CohortContext]) -> list[dict[str, str]]:
     return transactions
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Generate the Hybrid-AML synthetic CSV dataset.")
+    parser.add_argument("--seed", type=int, default=SEED, help=f"Random seed. Default: {SEED}.")
+    parser.add_argument("--cohorts", type=int, default=COHORT_COUNT, help=f"Number of synthetic cohorts. Default: {COHORT_COUNT}.")
+    parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR, help=f"Output directory. Default: {OUTPUT_DIR}.")
+    return parser.parse_args()
+
+
 def main() -> None:
-    customers, accounts, cohorts = build_customers()
-    transactions = build_transactions(cohorts)
+    args = parse_args()
+    customers, accounts, cohorts = build_customers(args.cohorts)
+    transactions = build_transactions(cohorts, args.seed)
 
     customer_rows = [customer.__dict__ for customer in customers]
     account_rows = [account.__dict__ for account in accounts]
 
     write_csv(
-        OUTPUT_DIR / "customers.csv",
+        args.output_dir / "customers.csv",
         ["customer_id", "full_name", "customer_type", "risk_tier", "created_at"],
         customer_rows,
     )
     write_csv(
-        OUTPUT_DIR / "accounts.csv",
+        args.output_dir / "accounts.csv",
         ["account_id", "customer_id", "account_type", "open_date", "status", "home_country"],
         account_rows,
     )
     write_csv(
-        OUTPUT_DIR / "transactions.csv",
+        args.output_dir / "transactions.csv",
         [
             "tx_id",
             "from_account_id",
@@ -561,9 +569,9 @@ def main() -> None:
         if scenario_tag.startswith("circular_trading_"):
             cycle_totals[scenario_tag] += float(row["amount"])
 
-    print(f"Wrote {len(customer_rows)} customers to {OUTPUT_DIR / 'customers.csv'}")
-    print(f"Wrote {len(account_rows)} accounts to {OUTPUT_DIR / 'accounts.csv'}")
-    print(f"Wrote {len(transactions)} transactions to {OUTPUT_DIR / 'transactions.csv'}")
+    print(f"Wrote {len(customer_rows)} customers to {args.output_dir / 'customers.csv'}")
+    print(f"Wrote {len(account_rows)} accounts to {args.output_dir / 'accounts.csv'}")
+    print(f"Wrote {len(transactions)} transactions to {args.output_dir / 'transactions.csv'}")
     for scenario_tag in sorted(smurfing_totals):
         print(f"Smurfing inbound total for {scenario_tag}: ${smurfing_totals[scenario_tag]:,.2f}")
     for scenario_tag in sorted(cycle_totals):
